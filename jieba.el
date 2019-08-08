@@ -139,6 +139,7 @@
 ;;   (jieba-do-split jieba-current-backend str))
 (defun jieba-split-chinese-word (str)
   (ejieba-split-words str))
+  ;; (jieba-word--split-by-friso str))
 
 (defsubst jieba-chinese-word? (s)
   "Return t when S is a real chinese word (All its chars are chinese char.)"
@@ -148,6 +149,24 @@
        t))
 
 (defalias 'jieba-chinese-word-p 'jieba-chinese-word?)
+
+(defvar jieba-word-split-command
+  "cd /Users/c/Github/friso/src/ && echo %s | ./friso && cd -"
+  "Set command for Chinese text segmentation.
+
+The result should separated by one space.
+
+I know two Chinese word segmentation tools, which have command line
+interface, are jieba (结巴中文分词) and scws, both of them are hosting
+on Github.")
+
+;;;###autoload
+(defun jieba-word--split-by-friso (str)
+  "Split CHINESE-STRING by one space.
+Return Chinese words as a string separated by one space"
+  (split-string (shell-command-to-string
+               (format jieba-word-split-command str)))
+)
 
 ;;;###autoload
 (defun jieba-chinese-word-atpt-bounds ()
@@ -253,6 +272,7 @@
     ;; (define-key evil-motion-state-map "w" 'jieba-forward-word)
     ;; (define-key evil-motion-state-map "b" 'jieba-backward-word)
     (evil-define-minor-mode-key '(normal visual) 'jieba-mode "w" 'jieba-forward-word)
+    (evil-define-minor-mode-key '(normal visual) 'jieba-mode "e" 'jieba-forward-word)
     (evil-define-minor-mode-key '(normal visual) 'jieba-mode "b" 'jieba-backward-word)
     (define-key map [remap backward-word] #'jieba-backward-word)
     (define-key map [remap kill-word] #'jieba-kill-word)
@@ -270,8 +290,8 @@
 (provide 'jieba)
 
 ;; Define text object
-;; (put 'chinese-word
-;;      'bounds-of-thing-at-point 'jieba-chinese-word-atpt-bounds)
+(put 'jieba-chinese-word
+     'bounds-of-thing-at-point 'jieba-chinese-word-atpt-bounds)
 
 ;; (cl-eval-when (load eval)
 ;;   (require 'jieba-node))
