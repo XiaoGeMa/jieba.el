@@ -33,6 +33,11 @@
 (require 'eieio)
 (require 'thingatpt)
 
+(require 'ejieba-api)
+
+(setq ejieba-dictionary-path "~/Github/emacs-split-chinese-words/cjieba/dict/")
+(ejieba-load-dictionary)
+
 (eval-when-compile
   (require 'cl-lib))
 
@@ -130,8 +135,10 @@
 
 (defvar jieba--single-chinese-char-re "\\cC")
 
+;; (defun jieba-split-chinese-word (str)
+;;   (jieba-do-split jieba-current-backend str))
 (defun jieba-split-chinese-word (str)
-  (jieba-do-split jieba-current-backend str))
+  (ejieba-split-words str))
 
 (defsubst jieba-chinese-word? (s)
   "Return t when S is a real chinese word (All its chars are chinese char.)"
@@ -144,11 +151,11 @@
 
 ;;;###autoload
 (defun jieba-chinese-word-atpt-bounds ()
-  (jieba--assert-server)
+  ;; (jieba--assert-server)
   (pcase (bounds-of-thing-at-point 'word)
     (`(,beg . ,end)
      (let ((word (buffer-substring-no-properties beg end)))
-       (when (jieba-chinese-word? word)
+       (if (jieba-chinese-word? word)
          (let ((cur (point))
                (index beg)
                (old-index beg))
@@ -163,7 +170,8 @@
                        (cl-return-from retval (cons old-index index)))
                       (t
                        (setq old-index index))))
-                   (jieba-split-chinese-word word)))))))))
+                   (jieba-split-chinese-word word))))
+         (cons beg  end))))))
 
 
 (defun jieba--move-chinese-word (backward?)
@@ -193,11 +201,17 @@
                               (car (bounds-of-thing-at-point 'word)))
                 (try-backward-move backward?)
               (backward-word))
-          (forward-word)))
+          ;; (skip-chars-forward "\n\r\t\f ")
+          (skip-chars-forward "^[:word:]")
+          ;; (forward-word)
+          (jieba--move-chinese-word backward?)
+          ))
        ((= dest cur)
         (try-backward-move backward?))
        (t
-        (goto-char dest))))))
+        (goto-char dest)
+        (skip-chars-forward "\n\r\t\ ")
+        )))))
 
 ;;;###autoload
 (defun jieba-forward-word (&optional arg)
@@ -236,6 +250,10 @@
 (defvar jieba-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map [remap forward-word] #'jieba-forward-word)
+    ;; (define-key evil-motion-state-map "w" 'jieba-forward-word)
+    ;; (define-key evil-motion-state-map "b" 'jieba-backward-word)
+    (evil-define-minor-mode-key '(normal visual) 'jieba-mode "w" 'jieba-forward-word)
+    (evil-define-minor-mode-key '(normal visual) 'jieba-mode "b" 'jieba-backward-word)
     (define-key map [remap backward-word] #'jieba-backward-word)
     (define-key map [remap kill-word] #'jieba-kill-word)
     (define-key map [remap backward-kill-word] #'jieba-backward-kill-word)
@@ -247,15 +265,15 @@
   :global t
   :keymap jieba-mode-map
   :lighter " Jieba"
-  (when jieba-mode (jieba-ensure t)))
+  )
 
 (provide 'jieba)
 
 ;; Define text object
-(put 'jieba-chinese-word
-     'bounds-of-thing-at-point 'jieba-chinese-word-atpt-bounds)
+;; (put 'chinese-word
+;;      'bounds-of-thing-at-point 'jieba-chinese-word-atpt-bounds)
 
-(cl-eval-when (load eval)
-  (require 'jieba-node))
+;; (cl-eval-when (load eval)
+;;   (require 'jieba-node))
 
 ;;; jieba.el ends here
